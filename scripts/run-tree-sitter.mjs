@@ -5,10 +5,11 @@ import { fileURLToPath } from "node:url";
 
 // Usage: node scripts/run-tree-sitter.mjs [--cwd <dir>] <tree-sitter args...>
 //
-// The repository holds two grammars (vba/, vb6/) under one tree-sitter.json.
-// `tree-sitter test` and `tree-sitter parse` pick the grammar from the working
-// directory, so `--cwd vb6` selects the VB6 parser; the default is the repo root
-// (fine for `generate`, wrong for `test`, which needs a dialect directory).
+// The repository holds three grammars (vba/, vb6/, vbscript/) under one
+// tree-sitter.json. `tree-sitter test` and `tree-sitter parse` pick the grammar
+// from the working directory, so `--cwd vb6` selects the VB6 parser; the default
+// is the repo root (fine for `generate`, wrong for `test`, which needs a dialect
+// directory).
 
 const require = createRequire(import.meta.url);
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");

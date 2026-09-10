@@ -6,7 +6,7 @@
 開発が進みファイルが増えた場合、このディレクトリツリー概要を更新して、全員が最新の構成を把握できるようにすること。
 
 ```txt
-root: .   (shared grammar core in common/, dialect dirs vba/ and vb6/, VB6 corpus provenance in corpus/; see README.md)
+root: .   (shared grammar core in common/, dialect dirs vba/, vb6/ and vbscript/, VB6 corpus provenance in corpus/; see README.md)
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml
@@ -17,7 +17,9 @@ root: .   (shared grammar core in common/, dialect dirs vba/ and vb6/, VB6 corpu
 │   │   ├── 0001-stable-ast-field-contract.md
 │   │   ├── 0002-generated-parser-artifacts.md
 │   │   ├── 0003-conditional-procedure-branch-bodies.md
-│   │   └── 0004-xlflow-lint-compatible-cst-evolution.md
+│   │   ├── 0004-xlflow-lint-compatible-cst-evolution.md
+│   │   ├── 0005-vba-parser-stays-the-base-grammar.md
+│   │   └── 0006-vbscript-is-a-subset-entry-point.md
 │   ├── specs/
 │   │   ├── inline-statement-sequences.md
 │   │   └── wasm-artifact.md
@@ -68,7 +70,7 @@ root: .   (shared grammar core in common/, dialect dirs vba/ and vb6/, VB6 corpu
 ├── AGENTS.md
 ├── CLAUDE.md
 ├── common/
-│   └── define-grammar.js   (the shared grammar; vba/grammar.js and vb6/grammar.js call it)
+│   └── define-grammar.js   (the shared grammar; vba/, vb6/ and vbscript/ grammar.js call it)
 ├── vba/
 │   ├── grammar.js
 │   ├── src/
@@ -76,6 +78,10 @@ root: .   (shared grammar core in common/, dialect dirs vba/ and vb6/, VB6 corpu
 ├── vb6/
 │   ├── grammar.js
 │   ├── src/  (includes scanner.c)
+│   └── test/corpus/
+├── vbscript/
+│   ├── grammar.js
+│   ├── src/
 │   └── test/corpus/
 ├── LICENSE
 ├── README.md
@@ -85,7 +91,7 @@ root: .   (shared grammar core in common/, dialect dirs vba/ and vb6/, VB6 corpu
 
 ## Critical Tree-sitter Rules
 
-- Do not modify `common/define-grammar.js` without adding or updating corpus tests in the dialect the change affects (`vba/test/corpus/`, `vb6/test/corpus/`).
+- Do not modify `common/define-grammar.js` without adding or updating corpus tests in the dialect the change affects (`vba/test/corpus/`, `vb6/test/corpus/`, `vbscript/test/corpus/`).
 - Do not weaken existing corpus expectations to make tests pass.
 - Always run `pnpm test` before completing a task.
 - Always parse examples after grammar changes.
@@ -164,7 +170,7 @@ root: .   (shared grammar core in common/, dialect dirs vba/ and vb6/, VB6 corpu
 
 ### 2-1. テスト戦略
 
-- common/define-grammar.js を変更したら、必ず corpus test（vba/test/corpus/ または vb6/test/corpus/）を追加・更新する
+- common/define-grammar.js を変更したら、必ず corpus test（vba/test/corpus/、vb6/test/corpus/ または vbscript/test/corpus/）を追加・更新する
 - 既存テストを弱めない
 - pnpm test を通す
 - examples を parse する

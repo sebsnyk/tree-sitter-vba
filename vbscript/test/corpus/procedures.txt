@@ -1,0 +1,225 @@
+==================
+sub without parentheses
+==================
+Sub Greet
+    WScript.Echo "hi"
+End Sub
+
+---
+
+(source_file
+  (sub_declaration
+    (identifier)
+    (newline)
+    (block
+      (call_statement
+        (qualified_member_expression
+          (identifier)
+          (identifier))
+        (unparenthesized_argument_list
+          (string_literal)))
+      (newline))
+    (end_sub_statement))
+  (newline))
+
+==================
+sub and function with visibility and parameters
+==================
+Public Sub Log(ByVal msg, ByRef count, items())
+    count = count + 1
+End Sub
+
+Private Function Add(a, b)
+    Add = a + b
+End Function
+
+Function NoArgs()
+End Function
+
+---
+
+(source_file
+  (sub_declaration
+    (visibility)
+    (identifier)
+    (parameter_list
+      (parameter
+        (byval_modifier)
+        (identifier))
+      (parameter
+        (byref_modifier)
+        (identifier))
+      (parameter
+        (identifier)
+        (array_bounds)))
+    (newline)
+    (block
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (number_literal)))
+      (newline))
+    (end_sub_statement))
+  (newline)
+  (newline)
+  (function_declaration
+    (visibility)
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier))
+      (parameter
+        (identifier)))
+    (newline)
+    (block
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (identifier)))
+      (newline))
+    (end_function_statement))
+  (newline)
+  (newline)
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (newline)
+    (end_function_statement))
+  (newline))
+
+==================
+exit statements
+==================
+Sub S()
+    Exit Sub
+End Sub
+
+Function F()
+    Exit Function
+End Function
+
+---
+
+(source_file
+  (sub_declaration
+    (identifier)
+    (parameter_list)
+    (newline)
+    (block
+      (exit_statement)
+      (newline))
+    (end_sub_statement))
+  (newline)
+  (newline)
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (newline)
+    (block
+      (exit_statement)
+      (newline))
+    (end_function_statement))
+  (newline))
+
+==================
+call forms
+==================
+Call Add(1, 2)
+Add 1, 2
+Greet
+obj.Method(x)
+shell.Run "notepad.exe", 1, False
+result = Add(1, 2)
+
+---
+
+(source_file
+  (call_statement
+    (identifier)
+    (argument_list
+      (number_literal)
+      (number_literal)))
+  (newline)
+  (call_statement
+    (identifier)
+    (unparenthesized_argument_list
+      (number_literal)
+      (number_literal)))
+  (newline)
+  (call_statement
+    (identifier))
+  (newline)
+  (call_statement
+    (qualified_member_expression
+      (identifier)
+      (identifier))
+    (unparenthesized_argument_list
+      (parenthesized_expression
+        (identifier))))
+  (newline)
+  (call_statement
+    (qualified_member_expression
+      (identifier)
+      (identifier))
+    (unparenthesized_argument_list
+      (string_literal)
+      (number_literal)
+      (boolean_literal)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (number_literal)
+        (number_literal))))
+  (newline))
+
+==================
+procedure bodies use every statement kind
+==================
+Sub Body()
+    Dim i
+    Const K = 2
+    i = K
+    Set o = Nothing
+    WScript.Echo i
+End Sub
+
+---
+
+(source_file
+  (sub_declaration
+    (identifier)
+    (parameter_list)
+    (newline)
+    (block
+      (variable_declaration
+        (variable_declarator
+          (identifier)))
+      (newline)
+      (const_declaration
+        (const_declarator
+          (identifier)
+          (initializer
+            (number_literal))))
+      (newline)
+      (assignment_statement
+        (identifier)
+        (identifier))
+      (newline)
+      (set_statement
+        (identifier)
+        (nothing_literal))
+      (newline)
+      (call_statement
+        (qualified_member_expression
+          (identifier)
+          (identifier))
+        (unparenthesized_argument_list
+          (identifier)))
+      (newline))
+    (end_sub_statement))
+  (newline))

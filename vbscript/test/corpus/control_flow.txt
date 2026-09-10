@@ -1,0 +1,395 @@
+==================
+if elseif else
+==================
+If n = 1 Then
+    total = 1
+ElseIf n = 2 Then
+    total = 2
+Else
+    total = 3
+End If
+
+---
+
+(source_file
+  (if_statement
+    (comparison_expression
+      (identifier)
+      (comparison_operator)
+      (number_literal)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (number_literal))
+  (newline)
+  (elseif_fragment
+    (comparison_expression
+      (identifier)
+      (comparison_operator)
+      (number_literal)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (number_literal))
+  (newline)
+  (else_fragment)
+  (newline)
+  (assignment_statement
+    (identifier)
+    (number_literal))
+  (newline)
+  (end_if_fragment)
+  (newline))
+
+==================
+single line if
+==================
+If Err.Number <> 0 Then WScript.Echo "failed: " & Err.Description
+If x Then y = 1 Else y = 2
+If Not c Is Nothing Then Set c = Nothing
+
+---
+
+(source_file
+  (single_line_if_statement
+    (comparison_expression
+      (qualified_member_expression
+        (identifier)
+        (identifier))
+      (comparison_operator)
+      (number_literal))
+    (call_statement
+      (qualified_member_expression
+        (identifier)
+        (identifier))
+      (unparenthesized_argument_list
+        (binary_expression
+          (string_literal)
+          (qualified_member_expression
+            (identifier)
+            (identifier))))))
+  (newline)
+  (single_line_if_statement
+    (identifier)
+    (assignment_statement
+      (identifier)
+      (number_literal))
+    (assignment_statement
+      (identifier)
+      (number_literal)))
+  (newline)
+  (single_line_if_statement
+    (unary_expression
+      (comparison_expression
+        (identifier)
+        (comparison_operator)
+        (nothing_literal)))
+    (set_statement
+      (identifier)
+      (nothing_literal)))
+  (newline))
+
+==================
+select case
+==================
+Select Case i
+    Case 1, 3
+        total = total + i
+    Case "a"
+        total = 0
+    Case Else
+        total = total - 1
+End Select
+
+---
+
+(source_file
+  (select_statement
+    (identifier)
+    (newline)
+    (case_clause
+      (case_expression
+        (number_literal))
+      (case_expression
+        (number_literal))
+      (newline)
+      (block
+        (assignment_statement
+          (identifier)
+          (binary_expression
+            (identifier)
+            (identifier)))
+        (newline)))
+    (case_clause
+      (case_expression
+        (string_literal))
+      (newline)
+      (block
+        (assignment_statement
+          (identifier)
+          (number_literal))
+        (newline)))
+    (case_clause
+      (newline)
+      (block
+        (assignment_statement
+          (identifier)
+          (binary_expression
+            (identifier)
+            (number_literal)))))
+    (newline))
+  (newline))
+
+==================
+for, for each, step and exit for
+==================
+For i = 1 To 10 Step 2
+    total = total + i
+Next
+For Each n In names
+    If IsEmpty(n) Then Exit For
+Next
+
+---
+
+(source_file
+  (for_statement
+    (identifier)
+    (number_literal)
+    (number_literal)
+    (number_literal)
+    (newline)
+    (block
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (identifier)))
+      (newline)))
+  (newline)
+  (for_each_statement
+    (identifier)
+    (identifier)
+    (newline)
+    (block
+      (single_line_if_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (identifier)))
+        (exit_statement))
+      (newline)))
+  (newline))
+
+==================
+do loops and while wend
+==================
+Do While total > 0
+    total = total - 1
+    If total = 5 Then Exit Do
+Loop
+Do
+    total = total + 1
+Loop Until total >= 3
+While total < 10
+    total = total + 1
+Wend
+
+---
+
+(source_file
+  (do_statement
+    (do_condition
+      (comparison_expression
+        (identifier)
+        (comparison_operator)
+        (number_literal)))
+    (newline)
+    (block
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (number_literal)))
+      (newline)
+      (single_line_if_statement
+        (comparison_expression
+          (identifier)
+          (comparison_operator)
+          (number_literal))
+        (exit_statement))
+      (newline)))
+  (newline)
+  (do_statement
+    (newline)
+    (block
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (number_literal)))
+      (newline))
+    (do_condition
+      (comparison_expression
+        (identifier)
+        (comparison_operator)
+        (number_literal))))
+  (newline)
+  (while_statement
+    (comparison_expression
+      (identifier)
+      (comparison_operator)
+      (number_literal))
+    (newline)
+    (block
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (number_literal)))
+      (newline)))
+  (newline))
+
+==================
+with block
+==================
+With shell
+    .CurrentDirectory = "C:\"
+    .Popup "done", 2
+End With
+
+---
+
+(source_file
+  (with_statement
+    (identifier)
+    (newline)
+    (block
+      (assignment_statement
+        (implicit_member_expression
+          (identifier))
+        (string_literal))
+      (newline)
+      (call_statement
+        (implicit_member_expression
+          (identifier))
+        (unparenthesized_argument_list
+          (string_literal)
+          (number_literal)))
+      (newline)))
+  (newline))
+
+==================
+on error resume next and on error goto 0
+==================
+On Error Resume Next
+shell.Run "missing.exe"
+If Err.Number <> 0 Then Err.Clear
+On Error GoTo 0
+Err.Raise 1001, "script", "failed"
+
+---
+
+(source_file
+  (on_error_statement)
+  (newline)
+  (call_statement
+    (qualified_member_expression
+      (identifier)
+      (identifier))
+    (unparenthesized_argument_list
+      (string_literal)))
+  (newline)
+  (single_line_if_statement
+    (comparison_expression
+      (qualified_member_expression
+        (identifier)
+        (identifier))
+      (comparison_operator)
+      (number_literal))
+    (call_statement
+      (qualified_member_expression
+        (identifier)
+        (identifier))))
+  (newline)
+  (on_error_statement
+    (line_number_literal))
+  (newline)
+  (call_statement
+    (qualified_member_expression
+      (identifier)
+      (identifier))
+    (unparenthesized_argument_list
+      (number_literal)
+      (string_literal)
+      (string_literal)))
+  (newline))
+
+==================
+operators
+==================
+r = a ^ 2 * b / c \ d Mod e + f - g & h
+t = a = b Or c <> d And Not e Is Nothing Xor f Eqv g Imp h
+u = (a >= b) And (c <= d)
+
+---
+
+(source_file
+  (assignment_statement
+    (identifier)
+    (binary_expression
+      (binary_expression
+        (binary_expression
+          (binary_expression
+            (binary_expression
+              (binary_expression
+                (binary_expression
+                  (binary_expression
+                    (identifier)
+                    (number_literal))
+                  (identifier))
+                (identifier))
+              (identifier))
+            (identifier))
+          (identifier))
+        (identifier))
+      (identifier)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (logical_value_expression
+      (logical_value_expression
+        (comparison_expression
+          (identifier)
+          (comparison_operator)
+          (identifier))
+        (comparison_expression
+          (identifier)
+          (comparison_operator)
+          (identifier)))
+      (binary_expression
+        (binary_expression
+          (binary_expression
+            (unary_expression
+              (comparison_expression
+                (identifier)
+                (comparison_operator)
+                (nothing_literal)))
+            (identifier))
+          (identifier))
+        (identifier))))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (binary_expression
+      (parenthesized_expression
+        (comparison_expression
+          (identifier)
+          (comparison_operator)
+          (identifier)))
+      (parenthesized_expression
+        (comparison_expression
+          (identifier)
+          (comparison_operator)
+          (identifier)))))
+  (newline))

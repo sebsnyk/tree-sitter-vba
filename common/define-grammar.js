@@ -1,21 +1,28 @@
 /**
- * @file Shared grammar core for the Visual Basic dialect family (VBA, VB6)
- * @author harumiWeb (VBA grammar), VB6 dialect layer added on top
+ * @file Shared grammar core for the Visual Basic dialect family (VBA, VB6, VBScript)
+ * @author harumiWeb (VBA grammar), VB6 and VBScript dialect layers added on top
  * @license MIT
  *
- * One grammar factory, two entry points: `grammar.js` (vba) and
- * `vb6/grammar.js` (vb6) each call `defineGrammar(dialect)`. Everything at
- * statement level lives here once. Dialect deltas are the `isVBA` / `isVB6`
- * branches below and nothing else; a reviewer can grep for them.
+ * One grammar factory, three entry points: `vba/grammar.js`, `vb6/grammar.js`
+ * and `vbscript/grammar.js` each call `defineGrammar(dialect)`. Everything at
+ * statement level lives here once. Dialect deltas are the `isVBA` / `isVB6` /
+ * `isVBScript` branches below and nothing else; a reviewer can grep for them.
+ *
+ * VBScript is a statement-level subset of VBA with a script body: executable
+ * statements at the top level, `Class ... End Class` blocks, a `Default`
+ * procedure modifier, and no types anywhere. Its branches therefore mostly
+ * remove alternatives. Every `isVBScript` gate leaves the other two dialects'
+ * branches untouched, so the vba and vb6 grammar.json are byte-identical with
+ * and without it.
  */
 
 /// <reference types="tree-sitter-cli/dsl" />
 // @ts-check
 
-const DIALECTS = ["vba", "vb6"];
+const DIALECTS = ["vba", "vb6", "vbscript"];
 
 /**
- * @param {"vba" | "vb6"} dialect
+ * @param {"vba" | "vb6" | "vbscript"} dialect
  */
 module.exports = function defineGrammar(dialect) {
   if (!DIALECTS.includes(dialect)) {
@@ -23,6 +30,7 @@ module.exports = function defineGrammar(dialect) {
   }
   const isVBA = dialect === "vba";
   const isVB6 = dialect === "vb6";
+  const isVBScript = dialect === "vbscript";
 
   // VB6 is whitespace-sensitive around the member operator: `Foo .Bar, x` is a
   // call to Foo with two arguments, `Foo.Bar , x` a call to Foo.Bar with an
@@ -33,12 +41,16 @@ module.exports = function defineGrammar(dialect) {
   // with either. VBA keeps the plain tokens and the base's behaviour.
   const dot = ($) => (isVB6 ? $._dot_immediate : ".");
   const bang = ($) => (isVB6 ? $._bang_immediate : "!");
+  // VBScript has no bang member operator and no type-declaration characters, so
+  // `!` is not a token there at all.
   const memberOperator = ($) =>
-    isVB6 ? choice($._dot_immediate, $._bang_immediate) : choice(".", "!");
+    isVB6 ? choice($._dot_immediate, $._bang_immediate) : isVBScript ? "." : choice(".", "!");
   const implicitOperator = ($) =>
     isVB6
       ? choice($._dot_immediate, $._dot_spaced, $._bang_immediate, $._bang_spaced)
-      : choice(".", "!");
+      : isVBScript
+        ? "."
+        : choice(".", "!");
   // VB6 anchors `#If` / `#ElseIf` to a following blank; VBA keeps the base's token.
   const preprocessorKeyword = (word) =>
     isVB6 ? token(seq(caseInsensitive(word), /[ \t]/)) : caseInsensitive(word);
@@ -115,36 +127,80 @@ module.exports = function defineGrammar(dialect) {
     rules: {
       source_file: ($) => repeat($._top_level_item),
 
-      _top_level_item: ($) =>
-        choice(
-          $.newline,
-          $.line_number_top_level_item,
-          $.frm_version_statement,
-          $.frm_begin_block,
-          $.frm_begin_property_block,
-          $.frm_property_statement,
-          $.preprocessor_const,
-          $.preprocessor_if,
-          $.attribute_statement,
-          $.option_statement,
-          $.implements_statement,
-          $.def_type_statement,
-          $.type_declaration,
-          $.enum_declaration,
-          $.declare_sub_statement,
-          $.declare_function_statement,
-          $.conditional_sub_declaration,
-          $.conditional_function_declaration,
-          $.conditional_property_declaration,
-          $.sub_declaration,
-          $.function_declaration,
-          $.property_get_declaration,
-          $.property_let_declaration,
-          $.property_set_declaration,
-          $.event_declaration,
-          $.const_declaration,
-          $.variable_declaration,
-        ),
+      // VBScript is a script: executable statements run at the top level, and the
+      // only declarations that do not are procedures and classes. There is no
+      // module header, no `Attribute`, no `Declare`, no `Type`/`Enum`, no
+      // conditional compilation, and `Property` procedures live in classes only.
+      ...(isVBScript
+        ? {
+            _top_level_item: ($) =>
+              choice(
+                $._statement_separator,
+                $.option_statement,
+                $.class_declaration,
+                $.sub_declaration,
+                $.function_declaration,
+                $._statement,
+              ),
+
+            class_declaration: ($) =>
+              seq(
+                caseInsensitive("Class"),
+                field("name", $.identifier),
+                $._statement_separator,
+                repeat(choice($._statement_separator, $._class_member)),
+                field("end", $.end_class_statement),
+              ),
+
+            // `Const` is not allowed inside a VBScript class; `Dim` is and means Public.
+            _class_member: ($) =>
+              choice(
+                $.variable_declaration,
+                $.sub_declaration,
+                $.function_declaration,
+                $.property_get_declaration,
+                $.property_let_declaration,
+                $.property_set_declaration,
+              ),
+
+            end_class_statement: (_) => seq(caseInsensitive("End"), caseInsensitive("Class")),
+
+            // `Public Default Property Get Item(i)` / `Public Default Function`: the
+            // member invoked when the object itself is used as a value.
+            default_modifier: (_) => caseInsensitive("Default"),
+          }
+        : {
+            _top_level_item: ($) =>
+              choice(
+                $.newline,
+                $.line_number_top_level_item,
+                $.frm_version_statement,
+                $.frm_begin_block,
+                $.frm_begin_property_block,
+                $.frm_property_statement,
+                $.preprocessor_const,
+                $.preprocessor_if,
+                $.attribute_statement,
+                $.option_statement,
+                $.implements_statement,
+                $.def_type_statement,
+                $.type_declaration,
+                $.enum_declaration,
+                $.declare_sub_statement,
+                $.declare_function_statement,
+                $.conditional_sub_declaration,
+                $.conditional_function_declaration,
+                $.conditional_property_declaration,
+                $.sub_declaration,
+                $.function_declaration,
+                $.property_get_declaration,
+                $.property_let_declaration,
+                $.property_set_declaration,
+                $.event_declaration,
+                $.const_declaration,
+                $.variable_declaration,
+              ),
+          }),
 
       newline: (_) => /\r?\n/,
 
@@ -339,18 +395,21 @@ module.exports = function defineGrammar(dialect) {
           alias(caseInsensitive("Name"), $.identifier),
         ),
 
+      // VBScript has `Option Explicit` and nothing else.
       option_statement: ($) =>
         seq(
           caseInsensitive("Option"),
-          choice(
-            caseInsensitive("Explicit"),
-            seq(caseInsensitive("Private"), caseInsensitive("Module")),
-            seq(
-              caseInsensitive("Compare"),
-              choice(caseInsensitive("Binary"), caseInsensitive("Text"), caseInsensitive("Database")),
-            ),
-            seq(caseInsensitive("Base"), $.number_literal),
-          ),
+          isVBScript
+            ? caseInsensitive("Explicit")
+            : choice(
+                caseInsensitive("Explicit"),
+                seq(caseInsensitive("Private"), caseInsensitive("Module")),
+                seq(
+                  caseInsensitive("Compare"),
+                  choice(caseInsensitive("Binary"), caseInsensitive("Text"), caseInsensitive("Database")),
+                ),
+                seq(caseInsensitive("Base"), $.number_literal),
+              ),
         ),
 
       implements_statement: ($) =>
@@ -570,9 +629,9 @@ module.exports = function defineGrammar(dialect) {
         seq(
           optional($._procedure_modifier),
           caseInsensitive("Function"),
-          field("name", choice($.identifier, $.bang_identifier)),
+          field("name", isVBScript ? $.identifier : choice($.identifier, $.bang_identifier)),
           optional(field("parameters", $.parameter_list)),
-          optional(field("type", $.as_type_clause)),
+          ...(isVBScript ? [] : [optional(field("type", $.as_type_clause))]),
         ),
 
       _property_header: ($) =>
@@ -585,7 +644,7 @@ module.exports = function defineGrammar(dialect) {
           field("accessor", $.get_accessor),
           field("name", $.identifier),
           optional(field("parameters", $.parameter_list)),
-          optional(field("type", $.as_type_clause)),
+          ...(isVBScript ? [] : [optional(field("type", $.as_type_clause))]),
         ),
 
       _property_let_header: ($) =>
@@ -595,7 +654,7 @@ module.exports = function defineGrammar(dialect) {
           field("accessor", $.let_accessor),
           field("name", $.identifier),
           optional(field("parameters", $.parameter_list)),
-          optional(field("type", $.as_type_clause)),
+          ...(isVBScript ? [] : [optional(field("type", $.as_type_clause))]),
         ),
 
       _property_set_header: ($) =>
@@ -605,7 +664,7 @@ module.exports = function defineGrammar(dialect) {
           field("accessor", $.set_accessor),
           field("name", $.identifier),
           optional(field("parameters", $.parameter_list)),
-          optional(field("type", $.as_type_clause)),
+          ...(isVBScript ? [] : [optional(field("type", $.as_type_clause))]),
         ),
 
       conditional_sub_declaration: ($) =>
@@ -744,11 +803,15 @@ module.exports = function defineGrammar(dialect) {
           ),
         ),
 
+      // VBScript has no `Static` procedures; its one modifier is `Default`, which
+      // must follow `Public`.
       _procedure_modifier: ($) =>
-        choice(
-          seq(field("visibility", $.visibility), optional(field("modifiers", $.static_modifier))),
-          field("modifiers", $.static_modifier),
-        ),
+        isVBScript
+          ? seq(field("visibility", $.visibility), optional(field("modifiers", $.default_modifier)))
+          : choice(
+              seq(field("visibility", $.visibility), optional(field("modifiers", $.static_modifier))),
+              field("modifiers", $.static_modifier),
+            ),
 
       _procedure_attributes: ($) => repeat1(seq($.attribute_statement, $.newline)),
 
@@ -805,10 +868,13 @@ module.exports = function defineGrammar(dialect) {
           $.while_statement,
           $.with_statement,
           alias($._inline_with_statement, $.with_statement),
-          $.on_goto_statement,
+          // Not VBScript: no jumps, no labels, no line numbers, no `End`, no file
+          // I/O, no events, no runtime statements from the forms package, no
+          // conditional compilation, no default types. `On Error` stays: VBScript
+          // has `On Error Resume Next` and `On Error GoTo 0`.
+          ...(isVBScript ? [] : [$.on_goto_statement]),
           $.on_error_statement,
-          $.resume_statement,
-          $.goto_statement,
+          ...(isVBScript ? [] : [$.resume_statement, $.goto_statement]),
           // VB6 only, per the note beside preprocessorKeyword. In the vba table these
           // five cost 206 states and 3.3 MB of parser.c because every statement list
           // (block, inline, numbered) carries them.
@@ -821,37 +887,36 @@ module.exports = function defineGrammar(dialect) {
                 $.rset_statement,
               ]
             : []),
-          $.label_statement,
-          $.line_number_statement,
+          ...(isVBScript ? [] : [$.label_statement, $.line_number_statement]),
           $.exit_statement,
-          $.end_statement,
+          ...(isVBScript ? [] : [$.end_statement]),
           $.redim_statement,
           $.erase_statement,
-          $.open_statement,
-          $.input_statement,
-          $.line_input_statement,
-          $.print_statement,
-          $.write_statement,
-          $.debug_print_statement,
-          $.close_statement,
-          $.get_statement,
-          $.put_statement,
-          $.lock_statement,
-          $.unlock_statement,
-          $.seek_statement,
-          $.reset_statement,
-          $.raise_event_statement,
-          $.name_statement,
+          ...(isVBScript
+            ? []
+            : [
+                $.open_statement,
+                $.input_statement,
+                $.line_input_statement,
+                $.print_statement,
+                $.write_statement,
+                $.debug_print_statement,
+                $.close_statement,
+                $.get_statement,
+                $.put_statement,
+                $.lock_statement,
+                $.unlock_statement,
+                $.seek_statement,
+                $.reset_statement,
+                $.raise_event_statement,
+                $.name_statement,
+              ]),
           $.stop_statement,
-          $.beep_statement,
-          $.load_statement,
-          $.unload_statement,
+          ...(isVBScript ? [] : [$.beep_statement, $.load_statement, $.unload_statement]),
           ...(isVB6
             ? [$.line_statement, $.pset_statement, $.circle_statement, $.scale_statement]
             : []),
-          $.preprocessor_const,
-          $.preprocessor_if,
-          $.def_type_statement,
+          ...(isVBScript ? [] : [$.preprocessor_const, $.preprocessor_if, $.def_type_statement]),
           $.const_declaration,
           $.variable_declaration,
           $.set_statement,
@@ -860,26 +925,33 @@ module.exports = function defineGrammar(dialect) {
           $.expression_statement,
         ),
 
+      // VBScript: `Dim x, y(5)`, `Public x`, `Private y()`; no `Static`, no
+      // `WithEvents`, no visibility in front of `Dim`.
       variable_declaration: ($) =>
-        choice(
-          seq(
-            isVB6
-              ? choice(field("visibility", $.visibility), $._dim_keyword)
-              : field("visibility", $.visibility),
-            field("with_events_modifier", $.with_events_modifier),
-            commaSep1($.variable_declarator),
-          ),
-          seq(
-            choice(
+        isVBScript
+          ? seq(
+              choice($._dim_keyword, field("visibility", $.visibility)),
+              commaSep1($.variable_declarator),
+            )
+          : choice(
               seq(
-                optional(field("visibility", $.visibility)),
-                choice($._dim_keyword, field("static_modifier", $.static_modifier)),
+                isVB6
+                  ? choice(field("visibility", $.visibility), $._dim_keyword)
+                  : field("visibility", $.visibility),
+                field("with_events_modifier", $.with_events_modifier),
+                commaSep1($.variable_declarator),
               ),
-              field("visibility", $.visibility),
+              seq(
+                choice(
+                  seq(
+                    optional(field("visibility", $.visibility)),
+                    choice($._dim_keyword, field("static_modifier", $.static_modifier)),
+                  ),
+                  field("visibility", $.visibility),
+                ),
+                commaSep1($.variable_declarator),
+              ),
             ),
-            commaSep1($.variable_declarator),
-          ),
-        ),
 
       const_declaration: ($) =>
         seq(
@@ -888,23 +960,34 @@ module.exports = function defineGrammar(dialect) {
           commaSep1($.const_declarator),
         ),
 
+      // Every VBScript variable is a Variant: no `As` clause anywhere, no initializer
+      // on `Dim`, and the type-declaration characters do not exist, so there is no
+      // bang_identifier either.
       variable_declarator: ($) =>
-        choice(
-          prec.right(
-            1,
-            seq(
-              field("name", $._declarator_name),
-              field("bounds", $.array_bounds),
-              optional(field("type", $.as_type_clause)),
-              optional(field("initializer", $.initializer)),
+        isVBScript
+          ? prec.right(
+              1,
+              seq(
+                field("name", reserved("variable_declarator", $.identifier)),
+                optional(field("bounds", $.array_bounds)),
+              ),
+            )
+          : choice(
+              prec.right(
+                1,
+                seq(
+                  field("name", $._declarator_name),
+                  field("bounds", $.array_bounds),
+                  optional(field("type", $.as_type_clause)),
+                  optional(field("initializer", $.initializer)),
+                ),
+              ),
+              seq(
+                field("name", $._declarator_name),
+                optional(field("type", $.as_type_clause)),
+                optional(field("initializer", $.initializer)),
+              ),
             ),
-          ),
-          seq(
-            field("name", $._declarator_name),
-            optional(field("type", $.as_type_clause)),
-            optional(field("initializer", $.initializer)),
-          ),
-        ),
 
       _declarator_name: ($) =>
         choice(
@@ -916,26 +999,36 @@ module.exports = function defineGrammar(dialect) {
         prec(2, seq(reserved("variable_declarator", $.identifier), bang($))),
 
       const_declarator: ($) =>
-        seq(
-          field("name", choice($.identifier, $.bang_identifier)),
-          optional(field("type", $.as_type_clause)),
-          optional(field("initializer", $.initializer)),
-        ),
+        isVBScript
+          ? seq(field("name", $.identifier), field("initializer", $.initializer))
+          : seq(
+              field("name", choice($.identifier, $.bang_identifier)),
+              optional(field("type", $.as_type_clause)),
+              optional(field("initializer", $.initializer)),
+            ),
 
       initializer: ($) => seq("=", field("value", choice($.comparison_expression, $._expression))),
 
       parameter_list: ($) => seq("(", optional(commaSep1($.parameter)), ")"),
 
+      // VBScript parameters are `[ByVal | ByRef] name[()]`: no `Optional`, no
+      // `ParamArray`, no type, no default.
       parameter: ($) =>
-        seq(
-          optional(field("optional_modifier", $.optional_modifier)),
-          optional(field("passing_mode", choice($.byval_modifier, $.byref_modifier))),
-          optional(field("paramarray_modifier", $.paramarray_modifier)),
-          field("name", choice($.identifier, $.bang_identifier)),
-          optional(field("bounds", $.array_bounds)),
-          optional(field("type", $.as_type_clause)),
-          optional(field("default_value", $.initializer)),
-        ),
+        isVBScript
+          ? seq(
+              optional(field("passing_mode", choice($.byval_modifier, $.byref_modifier))),
+              field("name", $.identifier),
+              optional(field("bounds", $.array_bounds)),
+            )
+          : seq(
+              optional(field("optional_modifier", $.optional_modifier)),
+              optional(field("passing_mode", choice($.byval_modifier, $.byref_modifier))),
+              optional(field("paramarray_modifier", $.paramarray_modifier)),
+              field("name", choice($.identifier, $.bang_identifier)),
+              optional(field("bounds", $.array_bounds)),
+              optional(field("type", $.as_type_clause)),
+              optional(field("default_value", $.initializer)),
+            ),
 
       as_type_clause: ($) =>
         prec.right(
@@ -993,7 +1086,7 @@ module.exports = function defineGrammar(dialect) {
         choice(
           caseInsensitive("Public"),
           caseInsensitive("Private"),
-          caseInsensitive("Friend"),
+          ...(isVBScript ? [] : [caseInsensitive("Friend")]),
           ...(isVB6 ? [caseInsensitive("Global")] : []),
         ),
 
@@ -1074,10 +1167,9 @@ module.exports = function defineGrammar(dialect) {
           $.with_statement,
           alias($._inline_with_statement, $.with_statement),
           $.exit_statement,
-          $.end_statement,
+          ...(isVBScript ? [] : [$.end_statement]),
           $.on_error_statement,
-          $.resume_statement,
-          $.goto_statement,
+          ...(isVBScript ? [] : [$.resume_statement, $.goto_statement]),
           // VB6 only, per the note beside preprocessorKeyword. In the vba table these
           // five cost 206 states and 3.3 MB of parser.c because every statement list
           // (block, inline, numbered) carries them.
@@ -1092,25 +1184,27 @@ module.exports = function defineGrammar(dialect) {
             : []),
           $.redim_statement,
           $.erase_statement,
-          $.open_statement,
-          $.input_statement,
-          $.line_input_statement,
-          $.print_statement,
-          $.write_statement,
-          $.debug_print_statement,
-          $.close_statement,
-          $.get_statement,
-          $.put_statement,
-          $.lock_statement,
-          $.unlock_statement,
-          $.seek_statement,
-          $.reset_statement,
-          $.raise_event_statement,
-          $.name_statement,
+          ...(isVBScript
+            ? []
+            : [
+                $.open_statement,
+                $.input_statement,
+                $.line_input_statement,
+                $.print_statement,
+                $.write_statement,
+                $.debug_print_statement,
+                $.close_statement,
+                $.get_statement,
+                $.put_statement,
+                $.lock_statement,
+                $.unlock_statement,
+                $.seek_statement,
+                $.reset_statement,
+                $.raise_event_statement,
+                $.name_statement,
+              ]),
           $.stop_statement,
-          $.beep_statement,
-          $.load_statement,
-          $.unload_statement,
+          ...(isVBScript ? [] : [$.beep_statement, $.load_statement, $.unload_statement]),
           ...(isVB6
             ? [$.line_statement, $.pset_statement, $.circle_statement, $.scale_statement]
             : []),
@@ -1525,7 +1619,12 @@ module.exports = function defineGrammar(dialect) {
         prec(
           4,
           seq(
-            field("name", choice($.identifier, $.bang_identifier, $.member_expression)),
+            field(
+              "name",
+              isVBScript
+                ? choice($.identifier, $.member_expression)
+                : choice($.identifier, $.bang_identifier, $.member_expression),
+            ),
             $.array_bounds,
             ...(isVB6 ? [optional(field("type", $.as_type_clause))] : []),
           ),
@@ -1667,14 +1766,13 @@ module.exports = function defineGrammar(dialect) {
           prec.dynamic(5, $.member_expression),
           prec.dynamic(10, alias($._print_output_call_expression, $.call_expression)),
           $._literal,
-          $.file_number_literal,
+          ...(isVBScript ? [] : [$.file_number_literal]),
           alias(caseInsensitive("Line"), $.identifier),
           alias(caseInsensitive("Name"), $.identifier),
           $.identifier,
           ...(isVB6 ? [$.bang_identifier] : []),
           $.new_expression,
-          $.addressof_expression,
-          $.type_of_expression,
+          ...(isVBScript ? [] : [$.addressof_expression, $.type_of_expression]),
           $.unary_expression,
         ),
 
@@ -2266,10 +2364,10 @@ module.exports = function defineGrammar(dialect) {
       // arguments split that way while still parsing without an ERROR node.
       _omitted_argument_tail_item: ($) => prec.right(2, seq(",", optional($._argument))),
 
+      // VBScript has no named arguments and no call-site `ByVal`.
       _argument: ($) =>
         choice(
-          $.byval_argument,
-          $.named_argument,
+          ...(isVBScript ? [] : [$.byval_argument, $.named_argument]),
           $.logical_value_expression,
           $.comparison_expression,
           $._expression,
@@ -2299,10 +2397,11 @@ module.exports = function defineGrammar(dialect) {
           $._expression,
         ),
 
+      // VBScript has no `#` file numbers, no `AddressOf` and no `TypeOf ... Is`.
       _primary_expression: ($) =>
         choice(
           $._literal,
-          $.file_number_literal,
+          ...(isVBScript ? [] : [$.file_number_literal]),
           $.call_expression,
           $.member_expression,
           ...(isVB6 ? [alias($._name_member_expression, $.qualified_member_expression)] : []),
@@ -2311,8 +2410,7 @@ module.exports = function defineGrammar(dialect) {
           $.identifier,
           ...(isVB6 ? [$.bang_identifier] : []),
           $.new_expression,
-          $.addressof_expression,
-          $.type_of_expression,
+          ...(isVBScript ? [] : [$.addressof_expression, $.type_of_expression]),
           $.parenthesized_expression,
         ),
 
@@ -2328,8 +2426,18 @@ module.exports = function defineGrammar(dialect) {
           ),
         ),
 
+      // VBScript has no `Like` operator.
       comparison_operator: (_) =>
-        choice("=", "<>", "<", "<=", ">", ">=", caseInsensitive("Is"), caseInsensitive("Like")),
+        choice(
+          "=",
+          "<>",
+          "<",
+          "<=",
+          ">",
+          ">=",
+          caseInsensitive("Is"),
+          ...(isVBScript ? [] : [caseInsensitive("Like")]),
+        ),
 
       // A comparison may itself be the left operand (`a = b <> 0`, `x Is Nothing = False`);
       // prec.left 7 on comparison_expression makes the chain left-associative.
@@ -2606,18 +2714,22 @@ module.exports = function defineGrammar(dialect) {
           $.nothing_literal,
           $.null_literal,
           $.empty_literal,
-          $.date_literal,
+          // VBScript has no `#...#` date literal; dates come from CDate and friends.
+          ...(isVBScript ? [] : [$.date_literal]),
         ),
 
       string_literal: (_) => token(seq('"', repeat(choice('""', /[^"\r\n]/)), '"')),
 
+      // VBScript: hex `&H`, octal `&O`, decimal, no type-declaration suffix.
       number_literal: (_) =>
         token(
-          choice(
-            /-?&[Hh][0-9A-Fa-f]+[$%&!#@^]?/,
-            ...(isVB6 ? [/-?&[Oo][0-7]+[$%&!#@^]?/] : []),
-            /-?(?:\d+\.\d*|\.\d+|\d+)(?:[Ee][+-]?\d+)?[$%&!#@^]?/,
-          ),
+          isVBScript
+            ? choice(/-?&[Hh][0-9A-Fa-f]+/, /-?&[Oo][0-7]+/, /-?(?:\d+\.\d*|\.\d+|\d+)(?:[Ee][+-]?\d+)?/)
+            : choice(
+                /-?&[Hh][0-9A-Fa-f]+[$%&!#@^]?/,
+                ...(isVB6 ? [/-?&[Oo][0-7]+[$%&!#@^]?/] : []),
+                /-?(?:\d+\.\d*|\.\d+|\d+)(?:[Ee][+-]?\d+)?[$%&!#@^]?/,
+              ),
         ),
 
       boolean_literal: (_) => choice(caseInsensitive("True"), caseInsensitive("False")),
@@ -2635,13 +2747,17 @@ module.exports = function defineGrammar(dialect) {
 
       file_number_literal: ($) => seq("#", field("number", $._expression)),
 
+      // VBScript identifiers carry no type-declaration character; the `[...]`
+      // escape for names that collide with keywords exists in both.
       identifier: (_) =>
         token(
-          choice(
-            /[A-Za-z_\u00C0-\u{10FFFF}][A-Za-z0-9_\u00C0-\u{10FFFF}]*[$%&#@^]?/u,
-            prec(-1, /[A-Za-z_\u00C0-\u{10FFFF}][A-Za-z0-9_\u00C0-\u{10FFFF}]*!/u),
-            /\[[^\]\r\n]+\]/,
-          ),
+          isVBScript
+            ? choice(/[A-Za-z_\u00C0-\u{10FFFF}][A-Za-z0-9_\u00C0-\u{10FFFF}]*/u, /\[[^\]\r\n]+\]/)
+            : choice(
+                /[A-Za-z_\u00C0-\u{10FFFF}][A-Za-z0-9_\u00C0-\u{10FFFF}]*[$%&#@^]?/u,
+                prec(-1, /[A-Za-z_\u00C0-\u{10FFFF}][A-Za-z0-9_\u00C0-\u{10FFFF}]*!/u),
+                /\[[^\]\r\n]+\]/,
+              ),
         ),
     },
   });

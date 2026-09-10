@@ -1,0 +1,249 @@
+==================
+class with members, properties and a default property
+==================
+Class Counter
+    Private m_value
+    Public Name
+    Dim label
+
+    Private Sub Class_Initialize()
+        m_value = 0
+    End Sub
+
+    Private Sub Class_Terminate
+    End Sub
+
+    Public Default Property Get Value
+        Value = m_value
+    End Property
+
+    Public Property Let Value(v)
+        m_value = v
+    End Property
+
+    Public Property Set Owner(ByVal obj)
+        Set m_owner = obj
+    End Property
+
+    Public Function Increment()
+        m_value = m_value + 1
+        Increment = Me.Value
+    End Function
+End Class
+
+---
+
+(source_file
+  (class_declaration
+    (identifier)
+    (newline)
+    (variable_declaration
+      (visibility)
+      (variable_declarator
+        (identifier)))
+    (newline)
+    (variable_declaration
+      (visibility)
+      (variable_declarator
+        (identifier)))
+    (newline)
+    (variable_declaration
+      (variable_declarator
+        (identifier)))
+    (newline)
+    (newline)
+    (sub_declaration
+      (visibility)
+      (identifier)
+      (parameter_list)
+      (newline)
+      (block
+        (assignment_statement
+          (identifier)
+          (number_literal))
+        (newline))
+      (end_sub_statement))
+    (newline)
+    (newline)
+    (sub_declaration
+      (visibility)
+      (identifier)
+      (newline)
+      (end_sub_statement))
+    (newline)
+    (newline)
+    (property_get_declaration
+      (visibility)
+      (default_modifier)
+      (get_accessor)
+      (identifier)
+      (newline)
+      (block
+        (assignment_statement
+          (identifier)
+          (identifier))
+        (newline))
+      (end_property_statement))
+    (newline)
+    (newline)
+    (property_let_declaration
+      (visibility)
+      (let_accessor)
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)))
+      (newline)
+      (block
+        (assignment_statement
+          (identifier)
+          (identifier))
+        (newline))
+      (end_property_statement))
+    (newline)
+    (newline)
+    (property_set_declaration
+      (visibility)
+      (set_accessor)
+      (identifier)
+      (parameter_list
+        (parameter
+          (byval_modifier)
+          (identifier)))
+      (newline)
+      (block
+        (set_statement
+          (identifier)
+          (identifier))
+        (newline))
+      (end_property_statement))
+    (newline)
+    (newline)
+    (function_declaration
+      (visibility)
+      (identifier)
+      (parameter_list)
+      (newline)
+      (block
+        (assignment_statement
+          (identifier)
+          (binary_expression
+            (identifier)
+            (number_literal)))
+        (newline)
+        (assignment_statement
+          (identifier)
+          (qualified_member_expression
+            (identifier)
+            (identifier)))
+        (newline))
+      (end_function_statement))
+    (newline)
+    (end_class_statement))
+  (newline))
+
+==================
+empty class
+==================
+Class Empty1
+End Class
+
+---
+
+(source_file
+  (class_declaration
+    (identifier)
+    (newline)
+    (end_class_statement))
+  (newline))
+
+==================
+default function and class between statements
+==================
+x = 1
+Class Formatter
+    Public Default Function Format(v)
+        Format = CStr(v)
+    End Function
+End Class
+Set f = New Formatter
+WScript.Echo f(1)
+
+---
+
+(source_file
+  (assignment_statement
+    (identifier)
+    (number_literal))
+  (newline)
+  (class_declaration
+    (identifier)
+    (newline)
+    (function_declaration
+      (visibility)
+      (default_modifier)
+      (identifier)
+      (parameter_list
+        (parameter
+          (identifier)))
+      (newline)
+      (block
+        (assignment_statement
+          (identifier)
+          (call_expression
+            (identifier)
+            (argument_list
+              (identifier))))
+        (newline))
+      (end_function_statement))
+    (newline)
+    (end_class_statement))
+  (newline)
+  (set_statement
+    (identifier)
+    (new_expression
+      (identifier)))
+  (newline)
+  (call_statement
+    (qualified_member_expression
+      (identifier)
+      (identifier))
+    (unparenthesized_argument_list
+      (call_expression
+        (identifier)
+        (argument_list
+          (number_literal)))))
+  (newline))
+
+==================
+class with colon separators and comments
+==================
+Class C : Private a : Public b
+    ' comment inside the class
+    Public Sub M() : End Sub
+End Class
+
+---
+
+(source_file
+  (class_declaration
+    (identifier)
+    (variable_declaration
+      (visibility)
+      (variable_declarator
+        (identifier)))
+    (variable_declaration
+      (visibility)
+      (variable_declarator
+        (identifier)))
+    (newline)
+    (comment)
+    (newline)
+    (sub_declaration
+      (visibility)
+      (identifier)
+      (parameter_list)
+      (end_sub_statement))
+    (newline)
+    (end_class_statement))
+  (newline))

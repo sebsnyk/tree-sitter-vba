@@ -9,6 +9,8 @@ vba/src/grammar.json
 vba/src/parser.c
 vb6/src/grammar.json
 vb6/src/parser.c
+vbscript/src/grammar.json
+vbscript/src/parser.c
 
 # Logs
 npm-debug.log*

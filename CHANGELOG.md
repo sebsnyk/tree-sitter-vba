@@ -6,6 +6,17 @@ All notable changes to tree-sitter-vba will be documented in this file.
 
 ### Added
 
+- A `vbscript` parser generated from the same grammar core as `vba` and `vb6`.
+  `vbscript/grammar.js` is a one-line entry point; the dialect is the
+  `isVBScript` branches in `common/define-grammar.js`, which add statements at
+  the top level, `class_declaration` with `end_class_statement`, and
+  `default_modifier`, and remove the VBA constructs VBScript lacks (types and
+  type characters, `Declare`, conditional compilation, jumps and labels, file
+  I/O, events, named arguments, `Like`, date literals). The `vba` and `vb6`
+  `grammar.json` and `parser.c` are byte-identical before and after, and the
+  `vba` trees for the 481 examples are unchanged. 38 corpus cases under
+  `vbscript/test/corpus/`. Classic ASP embedding is out of scope; see
+  [ADR 0006](docs/adr/0006-vbscript-is-a-subset-entry-point.md).
 - Gate the built browser parser artifact at 7,864,320 bytes in CI, in the
   release workflow, and in the Pages deployment before `playground/dist` is
   uploaded, below the 8MB buffer above which Chromium refuses a main-thread

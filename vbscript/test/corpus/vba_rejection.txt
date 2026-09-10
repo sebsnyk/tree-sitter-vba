@@ -1,0 +1,141 @@
+==================
+conditional compilation is not vbscript
+:error
+==================
+#If VBA7 Then
+Private Declare PtrSafe Function GetTickCount Lib "kernel32" () As Long
+#End If
+
+---
+
+
+
+==================
+declare is not vbscript
+:error
+==================
+Private Declare Function GetTickCount Lib "kernel32" () As Long
+
+---
+
+
+
+==================
+type declaration characters are not vbscript
+:error
+==================
+s$ = "x"
+
+---
+
+
+
+==================
+goto is not a keyword, so a jump parses as a call and a label as an expression
+==================
+GoTo Done
+Done:
+
+---
+
+(source_file
+  (call_statement
+    (identifier)
+    (unparenthesized_argument_list
+      (identifier)))
+  (newline)
+  (call_statement
+    (identifier))
+  (newline))
+
+==================
+file io is not vbscript
+:error
+==================
+Open "a.txt" For Input As #1
+Print #1, "x"
+Close #1
+
+---
+
+
+
+==================
+named arguments are not vbscript
+:error
+==================
+Foo a:=1
+
+---
+
+
+
+==================
+date literals are not vbscript
+:error
+==================
+d = #1/1/2000#
+
+---
+
+
+
+==================
+like is not vbscript
+:error
+==================
+If a Like "b*" Then x = 1
+
+---
+
+
+
+==================
+standalone end is not vbscript
+:error
+==================
+End
+
+---
+
+
+
+==================
+type and enum declarations are not vbscript
+:error
+==================
+Type Point
+    X As Long
+End Type
+
+---
+
+
+
+==================
+optional and paramarray parameters are not vbscript
+:error
+==================
+Sub S(Optional a, ParamArray b())
+End Sub
+
+---
+
+
+
+==================
+an as clause is not a syntax error but a call statement
+==================
+Dim x As Long
+
+---
+
+(source_file
+  (variable_declaration
+    (variable_declarator
+      (identifier)))
+  (call_statement
+    (identifier)
+    (unparenthesized_argument_list
+      (identifier)))
+  (newline))

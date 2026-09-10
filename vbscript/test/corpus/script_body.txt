@@ -1,0 +1,330 @@
+==================
+statements run at the top level
+==================
+Option Explicit
+Dim shell, total
+Set shell = CreateObject("WScript.Shell")
+total = 0
+WScript.Echo "ready"
+
+---
+
+(source_file
+  (option_statement)
+  (newline)
+  (variable_declaration
+    (variable_declarator
+      (identifier))
+    (variable_declarator
+      (identifier)))
+  (newline)
+  (set_statement
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (string_literal))))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (number_literal))
+  (newline)
+  (call_statement
+    (qualified_member_expression
+      (identifier)
+      (identifier))
+    (unparenthesized_argument_list
+      (string_literal)))
+  (newline))
+
+==================
+declarations without types
+==================
+Dim x, names(2), grid(3, 4), dynamic()
+Public counter
+Private m_cache
+Const GREETING = "Hello, ""world"""
+Private Const LIMIT = &H1F
+Public Const RATE = 1.5E3
+
+---
+
+(source_file
+  (variable_declaration
+    (variable_declarator
+      (identifier))
+    (variable_declarator
+      (identifier)
+      (array_bounds
+        (array_bound
+          (number_literal))))
+    (variable_declarator
+      (identifier)
+      (array_bounds
+        (array_bound
+          (number_literal))
+        (array_bound
+          (number_literal))))
+    (variable_declarator
+      (identifier)
+      (array_bounds)))
+  (newline)
+  (variable_declaration
+    (visibility)
+    (variable_declarator
+      (identifier)))
+  (newline)
+  (variable_declaration
+    (visibility)
+    (variable_declarator
+      (identifier)))
+  (newline)
+  (const_declaration
+    (const_declarator
+      (identifier)
+      (initializer
+        (string_literal))))
+  (newline)
+  (const_declaration
+    (visibility)
+    (const_declarator
+      (identifier)
+      (initializer
+        (number_literal))))
+  (newline)
+  (const_declaration
+    (visibility)
+    (const_declarator
+      (identifier)
+      (initializer
+        (number_literal))))
+  (newline))
+
+==================
+colon separators and line continuation
+==================
+Dim a: a = 1: b = a + 1
+total = a + _
+    b
+
+---
+
+(source_file
+  (variable_declaration
+    (variable_declarator
+      (identifier)))
+  (assignment_statement
+    (identifier)
+    (number_literal))
+  (assignment_statement
+    (identifier)
+    (binary_expression
+      (identifier)
+      (number_literal)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (binary_expression
+      (identifier)
+      (line_continuation)
+      (identifier)))
+  (newline))
+
+==================
+comments
+==================
+' apostrophe comment
+Rem Rem comment
+x = 1 ' trailing
+
+---
+
+(source_file
+  (comment)
+  (newline)
+  (comment)
+  (newline)
+  (assignment_statement
+    (identifier)
+    (number_literal))
+  (comment)
+  (newline))
+
+==================
+literals
+==================
+n = &H1F + &O17 + .5 + 1. + 12 - -3
+s = "a" & """quoted"""
+b = True Or False
+Set o = Nothing
+v = Null
+e = Empty
+
+---
+
+(source_file
+  (assignment_statement
+    (identifier)
+    (binary_expression
+      (binary_expression
+        (binary_expression
+          (binary_expression
+            (binary_expression
+              (number_literal)
+              (number_literal))
+            (number_literal))
+          (number_literal))
+        (number_literal))
+      (number_literal)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (binary_expression
+      (string_literal)
+      (string_literal)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (binary_expression
+      (boolean_literal)
+      (boolean_literal)))
+  (newline)
+  (set_statement
+    (identifier)
+    (nothing_literal))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (null_literal))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (empty_literal))
+  (newline))
+
+==================
+bracketed identifier
+==================
+Dim [Class Name]
+[Class Name] = 1
+
+---
+
+(source_file
+  (variable_declaration
+    (variable_declarator
+      (identifier)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (number_literal))
+  (newline))
+
+==================
+set with new and member calls
+==================
+Set fso = New FileSystemObject
+Set f = fso.OpenTextFile("a.txt", 1)
+f.Close
+Set fso = Nothing
+
+---
+
+(source_file
+  (set_statement
+    (identifier)
+    (new_expression
+      (identifier)))
+  (newline)
+  (set_statement
+    (identifier)
+    (call_expression
+      (qualified_member_expression
+        (identifier)
+        (identifier))
+      (argument_list
+        (string_literal)
+        (number_literal))))
+  (newline)
+  (call_statement
+    (qualified_member_expression
+      (identifier)
+      (identifier)))
+  (newline)
+  (set_statement
+    (identifier)
+    (nothing_literal))
+  (newline))
+
+==================
+execute, eval, executeglobal and getref are ordinary calls
+==================
+Execute "total = 1"
+ExecuteGlobal "Dim late"
+total = Eval("1 + 2")
+Set fn = GetRef("Greet")
+
+---
+
+(source_file
+  (call_statement
+    (identifier)
+    (unparenthesized_argument_list
+      (string_literal)))
+  (newline)
+  (call_statement
+    (identifier)
+    (unparenthesized_argument_list
+      (string_literal)))
+  (newline)
+  (assignment_statement
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (string_literal))))
+  (newline)
+  (set_statement
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (string_literal))))
+  (newline))
+
+==================
+erase, redim preserve, randomize, stop
+==================
+ReDim Preserve names(5)
+ReDim grid(2, 2)
+Erase names
+Randomize
+Stop
+
+---
+
+(source_file
+  (redim_statement
+    (redim_declarator
+      (identifier)
+      (array_bounds
+        (array_bound
+          (number_literal)))))
+  (newline)
+  (redim_statement
+    (redim_declarator
+      (identifier)
+      (array_bounds
+        (array_bound
+          (number_literal))
+        (array_bound
+          (number_literal)))))
+  (newline)
+  (erase_statement
+    (identifier))
+  (newline)
+  (call_statement
+    (identifier))
+  (newline)
+  (stop_statement)
+  (newline))

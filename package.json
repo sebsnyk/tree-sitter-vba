@@ -1,7 +1,7 @@
 {
   "name": "tree-sitter-vba",
   "version": "0.13.0",
-  "description": "Tree-sitter grammars for Visual Basic for Applications (vba) and Visual Basic 6 (vb6) sharing one grammar core.",
+  "description": "Tree-sitter grammars for Visual Basic for Applications (vba), Visual Basic 6 (vb6) and VBScript (vbscript) sharing one grammar core.",
   "keywords": [
     "excel",
     "excel-vba",
@@ -11,6 +11,7 @@
     "tree-sitter-grammar",
     "vb6",
     "vba",
+    "vbscript",
     "visual-basic",
     "visual-basic-6",
     "visual-basic-for-applications"
@@ -29,12 +30,14 @@
     "common/define-grammar.js",
     "vba/grammar.js",
     "vb6/grammar.js",
+    "vbscript/grammar.js",
     "tree-sitter.json",
     "binding.gyp",
     "bindings/node/*",
     "bindings/go/*.go",
     "vba/src/**",
     "vb6/src/**",
+    "vbscript/src/**",
     "queries/*",
     "scripts/install.mjs",
     "README.md",
@@ -47,12 +50,12 @@
   },
   "scripts": {
     "install": "node scripts/install.mjs",
-    "generate": "node scripts/run-tree-sitter.mjs generate --abi 15 --output vba/src vba/grammar.js && node scripts/run-tree-sitter.mjs generate --abi 15 --output vb6/src vb6/grammar.js",
+    "generate": "node scripts/run-tree-sitter.mjs generate --abi 15 --output vba/src vba/grammar.js && node scripts/run-tree-sitter.mjs generate --abi 15 --output vb6/src vb6/grammar.js && node scripts/run-tree-sitter.mjs generate --abi 15 --output vbscript/src vbscript/grammar.js",
     "prepack": "pnpm generate",
     "build:binding": "node-gyp rebuild",
     "build:wasm": "pnpm generate && node scripts/build-wasm.mjs",
     "build:playground": "pnpm generate && node scripts/build-playground.mjs",
-    "test:corpus": "pnpm generate && node scripts/run-tree-sitter.mjs --cwd vba test && node scripts/run-tree-sitter.mjs --cwd vb6 test && node scripts/test-shared-corpus.mjs",
+    "test:corpus": "pnpm generate && node scripts/run-tree-sitter.mjs --cwd vba test && node scripts/run-tree-sitter.mjs --cwd vb6 test && node scripts/run-tree-sitter.mjs --cwd vbscript test && node scripts/test-shared-corpus.mjs",
     "test:stress": "pnpm generate && node scripts/ensure-binding.mjs && node scripts/stress-select-case.mjs",
     "test": "pnpm test:corpus && pnpm test:stress",
     "test:binding": "node scripts/ensure-binding.mjs && node --test bindings/node/*_test.js",
@@ -78,6 +81,8 @@
     "generate:vb6": "node scripts/run-tree-sitter.mjs generate --abi 15 --output vb6/src vb6/grammar.js",
     "test:corpus:vba": "pnpm generate:vba && node scripts/run-tree-sitter.mjs --cwd vba test",
     "test:corpus:vb6": "pnpm generate:vb6 && node scripts/run-tree-sitter.mjs --cwd vb6 test && node scripts/test-shared-corpus.mjs",
+    "generate:vbscript": "node scripts/run-tree-sitter.mjs generate --abi 15 --output vbscript/src vbscript/grammar.js",
+    "test:corpus:vbscript": "pnpm generate:vbscript && node scripts/run-tree-sitter.mjs --cwd vbscript test",
     "parse:corpus": "node scripts/parse-corpus.mjs"
   },
   "dependencies": {

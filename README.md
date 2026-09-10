@@ -4,11 +4,11 @@
 [![npm downloads](https://img.shields.io/npm/dm/tree-sitter-vba.svg)](https://www.npmjs.com/package/tree-sitter-vba)
 [![CI](https://github.com/harumiWeb/tree-sitter-vba/actions/workflows/ci.yml/badge.svg)](https://github.com/harumiWeb/tree-sitter-vba/actions/workflows/ci.yml)
 
-Tree-sitter grammars for Visual Basic for Applications (VBA) and Visual Basic 6
-(VB6), targeting exported Excel/VBA source files such as `.bas`, `.cls`, and
-`.frm`, and VB6 project sources including `.frm` forms and `.ctl` user
-controls. Two parsers, `vba` and `vb6`, are generated from one shared grammar
-core.
+Tree-sitter grammars for Visual Basic for Applications (VBA), Visual Basic 6
+(VB6) and VBScript, targeting exported Excel/VBA source files such as `.bas`,
+`.cls`, and `.frm`, VB6 project sources including `.frm` forms and `.ctl` user
+controls, and `.vbs` scripts. Three parsers, `vba`, `vb6` and `vbscript`, are
+generated from one shared grammar core.
 
 [Try tree-sitter-vba online](https://harumiweb.github.io/tree-sitter-vba/)
 
@@ -40,28 +40,33 @@ VB6 shares its statement grammar with VBA, so the `vb6` parser reuses all of
 the above and adds what is VB6's own: the `.frm`/`.ctl` form header and `.cls`
 class header as the VB6 IDE writes them, and the constructs that predate VBA.
 
+VBScript is a statement-level subset of VBA with a script body, so the
+`vbscript` parser reuses the same core, adds top-level statements,
+`Class ... End Class` and the `Default` modifier, and drops what VBScript
+does not have.
+
 ## Status
 
 This is a `v0.x` public release.
 
 The grammar is already usable for syntax-aware tooling such as highlighting,
 folding, tags, outline extraction, and initial symbol analysis. The current test
-suite covers 240 focused VBA corpus cases, 42 VB6 corpus cases, generated
-`Select Case` stress coverage through 500 clauses, and 481 checked-in VBA
-example files without `ERROR` or `MISSING` recovery nodes. The `vb6` parser is
-additionally measured against 1,436 real VB6 source files from 71 public
-projects; see [Testing](#testing) for the numbers.
+suite covers 240 focused VBA corpus cases, 42 VB6 corpus cases, 38 VBScript
+corpus cases, generated `Select Case` stress coverage through 500 clauses, and
+481 checked-in VBA example files without `ERROR` or `MISSING` recovery nodes.
+The `vb6` parser is additionally measured against 1,436 real VB6 source files
+from 71 public projects; see [Testing](#testing) for the numbers.
 
 It is not yet a complete VBA grammar. Node names and tree shapes may still change before `v1.0.0`.
 
-## Two parsers from one grammar
+## Three parsers from one grammar
 
 The statement grammar is written once, in `common/define-grammar.js`, as a
 function of the dialect. Each dialect directory holds a one-line entry point,
 its generated parser, and its corpus tests:
 
 ```text
-common/define-grammar.js   the whole grammar: defineGrammar("vba" | "vb6")
+common/define-grammar.js   the whole grammar: defineGrammar("vba" | "vb6" | "vbscript")
 vba/grammar.js             module.exports = require("../common/define-grammar")("vba")
 vba/src/                   generated vba parser; node-types.json is tracked, parser.c is generated
 vba/test/corpus/           247 VBA corpus cases
@@ -69,15 +74,19 @@ vb6/grammar.js             module.exports = require("../common/define-grammar")(
 vb6/src/scanner.c          a four-token external scanner (see Design principles)
 vb6/src/                   generated vb6 parser
 vb6/test/corpus/           44 VB6 corpus cases
+vbscript/grammar.js        module.exports = require("../common/define-grammar")("vbscript")
+vbscript/src/              generated vbscript parser
+vbscript/test/corpus/      38 VBScript corpus cases
 corpus/                    provenance of the VB6 acceptance corpus; the source files are fetched, not vendored
 examples/                  481 VBA example files
 ```
 
-Everything dialect-specific is an `isVB6` / `isVBA` branch inside the core;
-`grep -n "isVB6\|isVBA" common/define-grammar.js` lists the complete delta.
-This is the layout `tree-sitter-typescript` uses for TypeScript and TSX, and
-the reason both grammars live in subdirectories: with more than one grammar in
-`tree-sitter.json`, the CLI picks the grammar from the working directory.
+Everything dialect-specific is an `isVB6` / `isVBA` / `isVBScript` branch
+inside the core; `grep -n "isVB6\|isVBA\|isVBScript" common/define-grammar.js`
+lists the complete delta. This is the layout `tree-sitter-typescript` uses for
+TypeScript and TSX, and the reason the grammars live in subdirectories: with
+more than one grammar in `tree-sitter.json`, the CLI picks the grammar from the
+working directory.
 
 Generated artifacts follow [ADR 0002](docs/adr/0002-generated-parser-artifacts.md):
 `src/parser.c` and `src/grammar.json` are not tracked in either dialect
@@ -90,10 +99,10 @@ of the `vba` parser.
 npm install tree-sitter tree-sitter-vba
 ```
 
-The npm package's native addon is the `vba` parser. The `vb6` parser ships as
-generated C source (`vb6/src/parser.c` and `vb6/src/scanner.c`) for the
-tree-sitter CLI and for direct embedding; Node.js and Go bindings for it are
-not provided yet.
+The npm package's native addon is the `vba` parser. The `vb6` and `vbscript`
+parsers ship as generated C source (`vb6/src/parser.c` with `vb6/src/scanner.c`,
+and `vbscript/src/parser.c`) for the tree-sitter CLI and for direct embedding;
+Node.js and Go bindings for them are not provided yet.
 
 ## Usage
 
@@ -317,6 +326,49 @@ The VB6-only rules are gated by `isVB6` in the core and add these node types:
 additions in the list above are shared by both dialects; the `vba` tree shapes
 pinned by the VBA corpus are unchanged.
 
+### VBScript
+
+The `vbscript` parser is the same core gated by `isVBScript`
+([ADR 0006](docs/adr/0006-vbscript-is-a-subset-entry-point.md)). It adds:
+
+- a script body: statements run at the top level, so `Set shell =
+  CreateObject("WScript.Shell")` followed by `shell.Run "x"` parses without a
+  wrapping procedure, and `Sub`/`Function` declarations sit between statements
+- `Class Name ... End Class` as `class_declaration` with a `name` field and an
+  `end` field holding `end_class_statement`; members are `Dim`/`Public`/`Private`
+  variable declarations, `Sub`, `Function` and `Property Get/Let/Set`
+- `Public Default Property Get` and `Public Default Function`: `default_modifier`
+  in the `modifiers` field, where `vba` has `static_modifier`
+- `Sub Greet` and `Property Get Value` with no parameter list, `ByVal`/`ByRef`
+  parameters and `items()` array parameters
+- `On Error Resume Next` and `On Error GoTo 0`, `Option Explicit`, `Set x = New C`,
+  `Set x = Nothing`, `Erase`, `ReDim Preserve`, `Stop`, `Exit Do/For/Function/
+  Property/Sub`, `Is` comparisons, `&H` and `&O` literals, `[bracketed names]`,
+  `Rem` and `'` comments, `_` continuation and `:` separators, all from the base
+- `Execute`, `ExecuteGlobal`, `Eval` and `GetRef` are ordinary calls and need
+  nothing dialect-specific
+
+and drops what VBScript does not have: `As` clauses, initializers on `Dim`,
+type-declaration characters on identifiers and numbers, the bang member
+operator, `Declare`, `#Const`/`#If`, `Attribute` at the top level,
+`Type`/`Enum`, `Event`/`RaiseEvent`/`Implements`, `Static`, `Friend`,
+`WithEvents`, `Optional`/`ParamArray`/default parameters, named arguments and
+call-site `ByVal`, `Like`, `#...#` date literals, `AddressOf`, `TypeOf`,
+`GoTo`/`GoSub`/`Resume`, labels and line numbers, standalone `End`, `DefType`,
+every file I/O statement, `Beep`/`Load`/`Unload`, and every `Option` other than
+`Explicit`. The `vbscript` table is 5,373 states against 15,317 for `vba`.
+
+Dropping an alternative does not always make the construct an error. A keyword
+that is no longer valid where it appears lexes as an identifier, so
+`Dim x As Long` parses as a declaration followed by a bare call `As Long` and
+`GoTo Done` as a call to `GoTo`; the corpus pins both. Constructs whose first
+token is not an identifier (`#If`, `s$`, `#1/1/2000#`, `a:=1`) or that need a
+following keyword (`Declare Function`, `Open ... For`, `Like`, `End` alone) are
+errors.
+
+Not in scope: Classic ASP `<% ... %>` pages. Those are a host document with
+VBScript islands and belong to an injection query over a host grammar.
+
 ## Declaration node API
 
 This release line is still pre-`1.0.0`, and declaration node shapes may change
@@ -396,7 +448,7 @@ Member access and calls expose stable fields for analysis tools:
 
 ## Known limitations
 
-This grammar parses VBA and VB6 syntax only.
+This grammar parses VBA, VB6 and VBScript syntax only.
 
 It does not currently provide:
 
@@ -438,6 +490,21 @@ For the `vb6` parser:
 - There are no Node.js or Go bindings for the `vb6` parser yet; the npm addon,
   the Go module, and the Wasm artifact are the `vba` parser.
 
+For the `vbscript` parser:
+
+- Statement placement is not validated: `Default` is accepted on any
+  procedure, and a `Property` declaration parses outside a class. Removed
+  constructs whose first token is a word parse as calls rather than errors, as
+  described under [VBScript](#vbscript).
+- `line_number_prefix` and `line_number_literal` remain in the node set:
+  `On Error GoTo 0` yields the `0` as `line_number_literal`, and the optional
+  numbered-delimiter positions of the shared control-flow rules are still
+  present.
+- Classic ASP `<% %>` pages, `.wsf` XML wrappers and `.hta` files are not
+  parsed; feed the parser the VBScript text.
+- There are no Node.js or Go bindings and no Wasm artifact for the `vbscript`
+  parser; it ships as generated C source.
+
 ## Queries
 
 This package includes initial Tree-sitter queries for:
@@ -449,9 +516,9 @@ queries/tags.scm
 ```
 
 These queries are intended as a starting point for editor integrations and
-tooling. They may evolve as the grammar stabilizes. Both grammars in
-`tree-sitter.json` point at the same query files; the VB6-only node types are
-not yet highlighted.
+tooling. They may evolve as the grammar stabilizes. All three grammars in
+`tree-sitter.json` point at the same query files; the VB6-only and
+VBScript-only node types are not yet highlighted.
 
 ## Development
 
@@ -461,12 +528,13 @@ Install dependencies:
 pnpm install
 ```
 
-Generate both parsers, or one of them:
+Generate all parsers, or one of them:
 
 ```bash
 pnpm generate
 pnpm generate:vba
 pnpm generate:vb6
+pnpm generate:vbscript
 ```
 
 After grammar changes, keep the Go module artifact in sync:
@@ -483,14 +551,16 @@ pnpm test
 ```
 
 `pnpm test:corpus` runs the VBA corpus under the `vba` parser, the VB6 corpus
-under the `vb6` parser, and then the VBA corpus under the `vb6` parser through
+under the `vb6` parser, the VBScript corpus under the `vbscript` parser, and
+then the VBA corpus under the `vb6` parser through
 `scripts/test-shared-corpus.mjs`, which skips the cases whose expectations differ
 between the dialects by design and prints the reason for each. `pnpm
-test:corpus:vba` and `pnpm test:corpus:vb6` run one side.
+test:corpus:vba`, `pnpm test:corpus:vb6` and `pnpm test:corpus:vbscript` run one
+side.
 
 The tree-sitter CLI selects the grammar from the working directory, so run it
-inside `vba/` or `vb6/`; `scripts/run-tree-sitter.mjs --cwd vb6 <args>` does
-that from the repository root.
+inside `vba/`, `vb6/` or `vbscript/`; `scripts/run-tree-sitter.mjs --cwd vb6
+<args>` does that from the repository root.
 
 Parse example files:
 
@@ -589,6 +659,7 @@ Tree-sitter grammar behavior is tested with corpus files under:
 ```text
 vba/test/corpus/
 vb6/test/corpus/
+vbscript/test/corpus/
 ```
 
 Community-reported production syntax regressions are kept permanently under
@@ -673,7 +744,7 @@ Measured on 2026-09-08 with tree-sitter CLI 0.26.9:
 
 ## Design principles
 
-This repository parses VBA and VB6 syntax only.
+This repository parses VBA, VB6 and VBScript syntax only.
 
 It does not validate whether identifiers, types, members, procedures, workbook
 objects, or references are semantically valid. Those concerns belong in
